@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::{ SystemTime, UNIX_EPOCH };
 
 use directories_next;
 use serde_json;
@@ -99,6 +98,7 @@ impl Storage {
     Ok(serde_json::from_str(&contents).unwrap())
   }
 
+  /*
   pub async fn save_async(&self) -> Result<(), StorageError> {
     let mut save_file: File = File::create(Storage::path()).await.map_err(|_| StorageError::OpenError)?;
     if self.stored.is_none() {
@@ -108,6 +108,7 @@ impl Storage {
     }
     Ok(())
   }
+  */
 
   pub async fn save_async_separate(stored: Stored) -> Result<(), StorageError> {
     let mut save_file: File = File::create(Storage::path()).await.map_err(|_| StorageError::OpenError)?;

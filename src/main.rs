@@ -1,7 +1,7 @@
-use iced::futures::FutureExt;
+//use iced::futures::FutureExt;
 use iced::{ Application, Element };
-use iced::{ Command, Settings };
-use iced::theme::{ self, Theme };
+use iced::{ Command, Settings, window };
+use iced::theme::Theme;
 use iced::widget::{ container, column };
 
 mod utils;
@@ -12,13 +12,19 @@ mod storage;
 use storage::{ Stored, StorageError, Storage };
 
 mod bookmark_bar;
-use bookmark_bar::{ BarMessage, BookmarkBar };
+use bookmark_bar::{ BarMessage, BookmarkBar, SearchOptions };
 
 mod bookmark_list;
 use bookmark_list::{ ListMessage, BookmarkList };
 
 fn main() -> iced::Result {
   App::run(Settings {
+    window: window::Settings {
+      size: (920, 600),
+      min_size: Some((500, 250)),
+      icon: Some(window::icon::from_file("./src/icon.png").unwrap()),
+      ..window::Settings::default()
+    },
     ..Settings::default()
   })
 }
@@ -74,19 +80,28 @@ impl Application for App {
       },
       Self::Message::BarMessage(message) => {
         self.bookmark_bar.update(message.clone(), &mut self.storage);
-        if BarMessage::is_save_after(message) {
+        if BarMessage::is_save_after(message.clone()) {
           //self.storage.save_sync();
           Command::perform(Storage::save_async_separate(self.storage.stored.as_ref().unwrap().to_owned()), AppMessage::SaveDone)
         } else {
+          if BarMessage::is_search_update(message) {
+            self.bookmark_list.update(ListMessage::UpdateSearch(self.bookmark_bar.bookmark_search.search_option, self.bookmark_bar.bookmark_search.sort_option, self.bookmark_bar.input_values.get("search").cloned()), &mut self.storage);
+          }
           Command::none()
         }
       },
       Self::Message::ListMessage(message) => {
         self.bookmark_list.update(message.clone(), &mut self.storage);
-        if ListMessage::is_save_after(message) {
+        if ListMessage::is_save_after(message.clone()) {
           //self.storage.save_sync();
           Command::perform(Storage::save_async_separate(self.storage.stored.as_ref().unwrap().to_owned()), AppMessage::SaveDone)
         } else {
+          if let ListMessage::TagPress(tag) = message {
+            self.bookmark_bar.update(BarMessage::ShowSearch, &mut self.storage);
+            self.bookmark_bar.update(BarMessage::SearchOptionChange(SearchOptions::Tags), &mut self.storage);
+            self.bookmark_bar.update(BarMessage::InputSet("search".to_string(), tag), &mut self.storage);
+            self.bookmark_list.update(ListMessage::UpdateSearch(self.bookmark_bar.bookmark_search.search_option, self.bookmark_bar.bookmark_search.sort_option, self.bookmark_bar.input_values.get("search").cloned()), &mut self.storage);
+          }
           Command::none()
         }
       },

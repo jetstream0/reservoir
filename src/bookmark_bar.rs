@@ -5,13 +5,9 @@ use iced::{ alignment, Length };
 use iced::widget::{ button, pick_list, container, text_input, column, row };
 
 use crate::storage::{ Storage, Bookmark };
+use crate::utils::normalize_link;
 
 //contains bookmark search and adding
-
-#[derive(Clone, Debug)]
-pub struct Filter {
-  //
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BarMessage {
@@ -33,6 +29,15 @@ impl BarMessage {
       false
     }
   }
+
+  pub fn is_search_update(message: BarMessage) -> bool {
+    let _s: String = "search".to_string();
+    if matches!(message, BarMessage::SearchOptionChange(_)) || matches!(message, BarMessage::SortOptionChange(_)) || matches!(message, BarMessage::InputSet(_s, _)) {
+      true
+    } else {
+      false
+    }
+  }
 }
 
 #[derive(PartialEq)]
@@ -45,8 +50,8 @@ enum DisplayEnum {
 pub struct BookmarkBar {
   display: DisplayEnum,
   bookmark_add: BookmarkAdd,
-  bookmark_search: BookmarkSearch,
-  input_values: HashMap<String, String>,
+  pub bookmark_search: BookmarkSearch,
+  pub input_values: HashMap<String, String>,
 }
 
 impl BookmarkBar {
@@ -90,8 +95,14 @@ impl BookmarkBar {
             note = None;
           }
         }
-        let tags: Vec<String> = self.input_values.get("tags").unwrap_or(&empty_string).split(",").map(|item| item.to_string()).collect();
-        storage.add_bookmark(Bookmark::new(title, link, note, tags, None));
+        let tags_value: &String = self.input_values.get("tags").unwrap_or(&empty_string);
+        let tags: Vec<String>;
+        if tags_value.trim() == &empty_string {
+          tags = Vec::new();
+        } else {
+          tags = tags_value.split(",").map(|item| item.to_string()).collect();
+        }
+        storage.add_bookmark(Bookmark::new(title, normalize_link(link), note, tags, None));
         //reset
         self.input_values = HashMap::new();
       },
@@ -101,8 +112,6 @@ impl BookmarkBar {
       BarMessage::SortOptionChange(new_sort_option) => {
         self.bookmark_search.sort_option = new_sort_option;
       },
-      //
-      _ => {},
     }
   }
 
@@ -114,7 +123,7 @@ impl BookmarkBar {
           button("Hide New Bookmark").on_press(BarMessage::Hide),
         ].spacing(5)).width(Length::Fill).align_x(alignment::Horizontal::Center),
         self.bookmark_add.view(&self.input_values),
-      ].spacing(5).padding([10, 20]).into()
+      ].spacing(8).padding([10, 20]).into()
     } else if self.display == DisplayEnum::Search {
       column![
         container(row![
@@ -122,7 +131,7 @@ impl BookmarkBar {
           button("Show New Bookmark").on_press(BarMessage::ShowAdd),
         ].spacing(5)).width(Length::Fill).align_x(alignment::Horizontal::Center),
         self.bookmark_search.view(&self.input_values),
-      ].spacing(5).padding([10, 20]).into()
+      ].spacing(8).padding([10, 20]).into()
     } else {
       //
       container(row![
@@ -205,7 +214,7 @@ impl BookmarkSearch {
       pick_list(SearchOptions::all(), Some(self.search_option), BarMessage::SearchOptionChange),
       pick_list(SortOptions::all(), Some(self.sort_option), BarMessage::SortOptionChange),
       text_input("Search Query", input_values.get("search").unwrap_or(&"".to_string())).on_input(|value| BarMessage::InputSet("search".to_string(), value)),
-      button("Search"),
+      //button("Search"),
     ].spacing(5).into()
   }
 }

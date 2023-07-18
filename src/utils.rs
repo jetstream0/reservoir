@@ -19,3 +19,11 @@ pub fn timestamp_to_string(timestamp: u64) -> String {
   let local_datetime: DateTime<Local> = DateTime::<Local>::from(timestamp_time);
   local_datetime.format("%d/%m/%Y %H:%M").to_string()
 }
+
+pub fn normalize_link(link: String) -> String {
+  let mut link = link;
+  if link.starts_with("https://") {
+    link = link.replacen("https://", "", 1);
+  }
+  link
+}
