@@ -84,7 +84,13 @@ impl BookmarkBar {
         //required
         let empty_string: String = "".to_string();
         let title: String = self.input_values.get("title").unwrap_or(&empty_string).to_owned();
-        let link: String = self.input_values.get("link").unwrap_or(&empty_string).to_owned();
+        let link: String = normalize_link(self.input_values.get("link").unwrap_or(&empty_string).to_owned());
+        let already_exists = storage.stored.as_ref().unwrap().bookmarks.values().any(|bookmark| {
+          bookmark.link == link
+        });
+        if already_exists {
+          return;
+        }
         if title == "".to_string() || link == "".to_string() {
           return;
         }
@@ -102,7 +108,7 @@ impl BookmarkBar {
         } else {
           tags = tags_value.split(",").map(|item| item.to_string()).collect();
         }
-        storage.add_bookmark(Bookmark::new(title, normalize_link(link), note, tags, None));
+        storage.add_bookmark(Bookmark::new(title, link, note, tags, None));
         //reset
         self.input_values = HashMap::new();
       },

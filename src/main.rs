@@ -1,8 +1,11 @@
+#![windows_subsystem = "windows"]
+
 //use iced::futures::FutureExt;
 use iced::{ Application, Element };
-use iced::{ Command, Settings, window };
+use iced::{ Command, Settings, window, subscription, Subscription };
 use iced::theme::Theme;
 use iced::widget::{ container, column };
+use image::ImageFormat;
 
 mod utils;
 
@@ -21,12 +24,17 @@ fn main() -> iced::Result {
   App::run(Settings {
     window: window::Settings {
       size: (920, 600),
-      min_size: Some((500, 250)),
-      icon: Some(window::icon::from_file("./src/icon.png").unwrap()),
+      min_size: Some((575, 250)),
+      icon: Some(window::icon::from_file_data(include_bytes!("icon.png"), Some(ImageFormat::Png)).unwrap()),
       ..window::Settings::default()
     },
     ..Settings::default()
   })
+}
+
+pub struct WindowSize {
+  pub width: u32,
+  pub height: u32,
 }
 
 struct App {
@@ -34,6 +42,7 @@ struct App {
   loaded: bool,
   bookmark_list: BookmarkList,
   bookmark_bar: BookmarkBar,
+  window_size: WindowSize,
 }
 
 #[derive(Clone, Debug)]
@@ -42,6 +51,7 @@ enum AppMessage {
   BarMessage(BarMessage),
   ListMessage(ListMessage),
   SaveDone(Result<(), StorageError>),
+  SizeChange(u32, u32),
 }
 
 //all a big placeholder for now
@@ -58,6 +68,10 @@ impl Application for App {
         loaded: false,
         bookmark_list: BookmarkList::new(),
         bookmark_bar: BookmarkBar::new(),
+        window_size: WindowSize {
+          width: 920,
+          height: 600,
+        }
       },
       Command::perform(Storage::load(), Self::Message::Loaded),
     )
@@ -110,6 +124,13 @@ impl Application for App {
         Command::none()
       },
       //
+      AppMessage::SizeChange(width, height) => {
+        self.window_size = WindowSize { 
+          width,
+          height
+        };
+        Command::none()
+      },
       _ => Command::none(),
     }
   }
@@ -122,12 +143,23 @@ impl Application for App {
         self.bookmark_bar.view().map(move |message| {
           Self::Message::BarMessage(message)
         }),
-        self.bookmark_list.view(&self.storage.stored.as_ref().unwrap().bookmarks).map(move |message| {
+        self.bookmark_list.view(&self.storage.stored.as_ref().unwrap().bookmarks, &self.window_size).map(move |message| {
           Self::Message::ListMessage(message)
-        })
+        }),
       ].into()
     } else {
-      container("loading...").into()
+      container("Loading...").padding(5).into()
     }
+  }
+
+  fn subscription(&self) -> Subscription<Self::Message> {
+    subscription::events_with(|event, _status| {
+      match event {
+        iced::Event::Window(window::Event::Resized { width, height }) => {
+          Some(AppMessage::SizeChange(width, height))
+        },
+        _ => None,
+      }
+    })
   }
 }

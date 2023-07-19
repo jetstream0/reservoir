@@ -14,7 +14,7 @@ impl container::StyleSheet for BookmarkContainer {
   fn appearance(&self, _style: &Self::Style) -> container::Appearance {
     container::Appearance {
       border_radius: 15.0,
-      border_color: Color::from_rgb8(255, 255, 255),
+      border_color: Color::from_rgb8(128, 128, 128),
       border_width: 2.0,
       ..container::Appearance::default()
     }
@@ -58,7 +58,7 @@ impl button::StyleSheet for TagButton {
   fn active(&self, _style: &Self::Style) -> button::Appearance {
     let rgb = self.text_to_color();
     button::Appearance {
-      border_radius: 15.0,
+      border_radius: 10.0,
       border_width: 1.0,
       border_color: Color::from_rgb8(rgb[0], rgb[1], rgb[2]),
       background: Some(Background::Color(Color::from_rgba8(rgb[0], rgb[1], rgb[2], 0.3))),

@@ -6,6 +6,7 @@ use iced::widget::{ button, container, text, text_input, scrollable, row, Row, c
 
 use webbrowser;
 
+use crate::WindowSize;
 use crate::storage::{ Bookmark, Storage };
 use crate::bookmark_bar::{ SortOptions, SearchOptions };
 use crate::utils::{ timestamp_to_string, normalize_link };
@@ -164,7 +165,7 @@ impl BookmarkList {
     }
   }
 
-  pub fn view(&self, bookmarks: &HashMap<String, Bookmark>) -> Element<ListMessage> {
+  pub fn view(&self, bookmarks: &HashMap<String, Bookmark>, window_size: &WindowSize) -> Element<ListMessage> {
     let mut bookmarks_show: Vec<&Bookmark> = bookmarks.values().collect();
     //filter stuff
     if self.query.is_some() {
@@ -230,7 +231,7 @@ impl BookmarkList {
         timestamp_tag_row = timestamp_tag_row.push(text(&timestamp_to_string(bookmark.timestamp)).style(styles::BOOKMARK_TIMESTAMP_STYLE));
         for tag in bookmark.tags.clone() {
           timestamp_tag_row = timestamp_tag_row.push(
-            button(iced::widget::text(tag.clone())).padding([5, 10]).style(
+            button(iced::widget::text(tag.clone())).padding([3, 6]).style(
               theme::Button::Custom(Box::new(styles::TagButton { text: tag.to_string() }))
             ).on_press(ListMessage::TagPress(tag.clone()))
           );
@@ -240,7 +241,7 @@ impl BookmarkList {
             column![
               row![
                 row![
-                  text(&bookmark.title),
+                  container(text(&bookmark.title)).max_width(window_size.width as u16/2-60),
                   text(&bookmark.link),
                 ].width(Length::FillPortion(4)).spacing(5),
                 container(row![
@@ -248,7 +249,7 @@ impl BookmarkList {
                   button("Edit").on_press(ListMessage::EditBookmark(bookmark.uuid.clone())),
                   button("Open").on_press(ListMessage::OpenLink(bookmark.link.clone())),
                 ].width(Length::FillPortion(1)).spacing(5)).align_x(alignment::Horizontal::Right),
-              ].align_items(Alignment::Center),
+              ].spacing(5).align_items(Alignment::Center),
               timestamp_tag_row.align_items(Alignment::Center).spacing(5).padding([8, 0, 3, 0]),
               row![
                 if bookmark.note.is_some() { text(&bookmark.note.as_ref().unwrap()) } else { text("No note") },
@@ -286,21 +287,66 @@ impl BookmarkList {
             ].spacing(5)
           ).padding(BookmarkList::ITEM_PADDING).style(theme::Container::Custom(Box::new(styles::BookmarkContainer))).into()
         );
-        //
       } else {
+        let mut bookmark_title: String = bookmark.title.clone();
+        let mut bookmark_link: String = bookmark.link.clone();
+        //do ellipses... not great but whatever
+        if window_size.width < 840 {
+          if bookmark_title.len() > 20 {
+            bookmark_title = bookmark_title[0..20].to_string()+"...";
+          }
+          if bookmark_link.len() > 35 {
+            bookmark_link = bookmark_link[0..35].to_string()+"...";
+          }
+        } else if window_size.width < 910 {
+          if bookmark_title.len() > 25 {
+            bookmark_title = bookmark_title[0..25].to_string()+"...";
+          }
+          if bookmark_link.len() > 40 {
+            bookmark_link = bookmark_link[0..40].to_string()+"...";
+          }
+        } else if window_size.width < 1050 {
+          if bookmark_title.len() > 30 {
+            bookmark_title = bookmark_title[0..30].to_string()+"...";
+          }
+          if bookmark_link.len() > 50 {
+            bookmark_link = bookmark_link[0..50].to_string()+"...";
+          }
+        } else if window_size.width < 1200 {
+          if bookmark_title.len() > 35 {
+            bookmark_title = bookmark_title[0..35].to_string()+"...";
+          }
+          if bookmark_link.len() > 70 {
+            bookmark_link = bookmark_link[0..70].to_string()+"...";
+          }
+        } else if window_size.width < 1325 {
+          if bookmark_title.len() > 40 {
+            bookmark_title = bookmark_title[0..40].to_string()+"...";
+          }
+          if bookmark_link.len() > 80 {
+            bookmark_link = bookmark_link[0..80].to_string()+"...";
+          }
+        } else {
+          if bookmark_title.len() > 45 {
+            bookmark_title = bookmark_title[0..45].to_string()+"...";
+          }
+          if bookmark_link.len() > 90 {
+            bookmark_link = bookmark_link[0..90].to_string()+"...";
+          }
+        }
         bookmark_elements.push(
           container(
             row![
               row![
-                text(&bookmark.title),
-                text(&bookmark.link),
-              ].align_items(Alignment::Center).width(Length::FillPortion(4)).spacing(5),
+                text(bookmark_title),
+                text(bookmark_link),
+              ].width(Length::FillPortion(4)).spacing(5),
               container(row![
                 button("Expand").on_press(ListMessage::ExpandBookmark(bookmark.uuid.clone())),
                 button("Edit").on_press(ListMessage::EditBookmark(bookmark.uuid.clone())),
                 button("Open").on_press(ListMessage::OpenLink(bookmark.link.clone())),
               ].width(Length::FillPortion(1)).spacing(5)).align_x(alignment::Horizontal::Right),
-            ]
+            ].spacing(5).align_items(Alignment::Center)
           ).padding(BookmarkList::ITEM_PADDING).style(theme::Container::Custom(Box::new(styles::BookmarkContainer))).into()
         );
       }
