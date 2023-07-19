@@ -9,7 +9,7 @@ use webbrowser;
 use crate::WindowSize;
 use crate::storage::{ Bookmark, Storage };
 use crate::bookmark_bar::{ SortOptions, SearchOptions };
-use crate::utils::{ timestamp_to_string, normalize_link };
+use crate::utils::{ timestamp_to_string, truncate_with_ellipses, normalize_link };
 use crate::styles;
 
 #[derive(Clone, Debug)]
@@ -288,52 +288,23 @@ impl BookmarkList {
           ).padding(BookmarkList::ITEM_PADDING).style(theme::Container::Custom(Box::new(styles::BookmarkContainer))).into()
         );
       } else {
-        let mut bookmark_title: String = bookmark.title.clone();
-        let mut bookmark_link: String = bookmark.link.clone();
-        //do ellipses... not great but whatever
-        if window_size.width < 840 {
-          if bookmark_title.len() > 20 {
-            bookmark_title = bookmark_title[0..20].to_string()+"...";
-          }
-          if bookmark_link.len() > 35 {
-            bookmark_link = bookmark_link[0..35].to_string()+"...";
-          }
-        } else if window_size.width < 910 {
-          if bookmark_title.len() > 25 {
-            bookmark_title = bookmark_title[0..25].to_string()+"...";
-          }
-          if bookmark_link.len() > 40 {
-            bookmark_link = bookmark_link[0..40].to_string()+"...";
-          }
-        } else if window_size.width < 1050 {
-          if bookmark_title.len() > 30 {
-            bookmark_title = bookmark_title[0..30].to_string()+"...";
-          }
-          if bookmark_link.len() > 50 {
-            bookmark_link = bookmark_link[0..50].to_string()+"...";
-          }
-        } else if window_size.width < 1200 {
-          if bookmark_title.len() > 35 {
-            bookmark_title = bookmark_title[0..35].to_string()+"...";
-          }
-          if bookmark_link.len() > 70 {
-            bookmark_link = bookmark_link[0..70].to_string()+"...";
-          }
-        } else if window_size.width < 1325 {
-          if bookmark_title.len() > 40 {
-            bookmark_title = bookmark_title[0..40].to_string()+"...";
-          }
-          if bookmark_link.len() > 80 {
-            bookmark_link = bookmark_link[0..80].to_string()+"...";
-          }
-        } else {
-          if bookmark_title.len() > 45 {
-            bookmark_title = bookmark_title[0..45].to_string()+"...";
-          }
-          if bookmark_link.len() > 90 {
-            bookmark_link = bookmark_link[0..90].to_string()+"...";
-          }
-        }
+        let max_title_length = match window_size.width {
+          0..=839 => 20,
+          840..=909 => 25,
+          910..=1049 => 30,
+          1050..=1324 => 35,
+          _ => 40,
+        };
+        let max_link_length = match window_size.width {
+          0..=839 => 35,
+          840..=909 => 40,
+          910..=1049 => 50,
+          1050..=1199 => 70,
+          1200..=1324 => 80,
+          _ => 90,
+        };
+        let bookmark_title: String = truncate_with_ellipses(&bookmark.title, max_title_length);
+        let bookmark_link: String = truncate_with_ellipses(&bookmark.link, max_link_length);
         bookmark_elements.push(
           container(
             row![

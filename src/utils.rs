@@ -27,3 +27,11 @@ pub fn normalize_link(link: String) -> String {
   }
   link
 }
+
+pub fn truncate_with_ellipses(input: &str, max_length: usize) -> String {
+  if input.len() > max_length {
+    format!("{}...", &input[..max_length])
+  } else {
+    input.to_string()
+  }
+}
