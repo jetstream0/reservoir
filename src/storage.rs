@@ -110,6 +110,7 @@ impl Storage {
   }
   */
 
+  //would be nice to change to &Stored or some kind of pointer
   pub async fn save_async_separate(stored: Stored) -> Result<(), StorageError> {
     let mut save_file: File = File::create(Storage::path()).await.map_err(|_| StorageError::OpenError)?;
     save_file.write_all(serde_json::to_string_pretty(&stored).unwrap().as_bytes()).await.map_err(|_| StorageError::WriteError)?;
@@ -123,5 +124,22 @@ impl Storage {
 
   pub fn remove_bookmark(&mut self, uuid: String) {
     self.stored.as_mut().unwrap().bookmarks.remove(&uuid);
+  }
+
+  //would be nice to change to &Stored or some kind of pointer
+  pub async fn export(stored: Stored) -> Result<(), StorageError> {
+    if let Some(user_dirs) = directories_next::UserDirs::new() {
+      if let Some(download_path) = user_dirs.download_dir() {
+        let mut save_path: PathBuf = download_path.into();
+        save_path.push(format!("reservoir_info_{}.json", get_timestamp().to_string()));
+        let mut save_file: File = File::create(save_path).await.map_err(|_| StorageError::OpenError)?;
+        save_file.write_all(serde_json::to_string_pretty(&stored).unwrap().as_bytes()).await.map_err(|_| StorageError::WriteError)?;
+      } else {
+        return Err(StorageError::OpenError);
+      }
+    } else {
+      return Err(StorageError::OpenError);
+    }
+    Ok(())
   }
 }

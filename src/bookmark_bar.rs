@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use iced::Element;
 use iced::{ alignment, Length };
-use iced::widget::{ button, pick_list, container, text_input, column, row };
+use iced::widget::{ button, pick_list, container, text, text_input, column, row };
 
 use crate::storage::{ Storage, Bookmark };
 use crate::utils::normalize_link;
@@ -18,7 +18,9 @@ pub enum BarMessage {
   SortOptionChange(SortOptions),
   InputSet(String, String),
   AddBookmark,
-  //
+  ExpandAll,
+  ShrinkAll,
+  ExportAll,
 }
 
 impl BarMessage {
@@ -52,6 +54,7 @@ pub struct BookmarkBar {
   bookmark_add: BookmarkAdd,
   pub bookmark_search: BookmarkSearch,
   pub input_values: HashMap<String, String>,
+  pub expand_state: bool,
 }
 
 impl BookmarkBar {
@@ -61,6 +64,17 @@ impl BookmarkBar {
       bookmark_add: BookmarkAdd::new(),
       bookmark_search: BookmarkSearch::new(),
       input_values: HashMap::new(),
+      expand_state: true,
+    }
+  }
+
+  //reset but preserve search query
+  pub fn reset(&mut self) {
+    let old_inputs = self.input_values.clone();
+    self.input_values = HashMap::new();
+    let search_input = old_inputs.get("search");
+    if search_input.is_some() {
+      self.input_values.insert("search".to_string(), search_input.unwrap().to_owned());
     }
   }
 
@@ -74,8 +88,6 @@ impl BookmarkBar {
       },
       BarMessage::Hide => {
         self.display = DisplayEnum::Neither;
-        //reset
-        self.input_values = HashMap::new();
       },
       BarMessage::InputSet(input_name, value) => {
         self.input_values.insert(input_name, value);
@@ -109,8 +121,7 @@ impl BookmarkBar {
           tags = tags_value.split(",").map(|item| item.to_string()).collect();
         }
         storage.add_bookmark(Bookmark::new(title, link, note, tags, None));
-        //reset
-        self.input_values = HashMap::new();
+        self.reset();
       },
       BarMessage::SearchOptionChange(new_search_option) => {
         self.bookmark_search.search_option = new_search_option;
@@ -118,32 +129,91 @@ impl BookmarkBar {
       BarMessage::SortOptionChange(new_sort_option) => {
         self.bookmark_search.sort_option = new_sort_option;
       },
+      BarMessage::ExpandAll => {
+        self.expand_state = false;
+      },
+      BarMessage::ShrinkAll => {
+        self.expand_state = true;
+      },
+      _ => {},
     }
   }
 
   pub fn view(&self) -> Element<BarMessage> {
+    let expand_state_container: Element<BarMessage>;
+    if self.expand_state {
+      //show "Expand All"
+      expand_state_container = container(row![
+        button(
+          text("Expand All").horizontal_alignment(alignment::Horizontal::Center)
+        ).on_press(BarMessage::ExpandAll).width(Length::Fixed(90.0)),
+      ].spacing(5)).width(Length::Shrink).align_x(alignment::Horizontal::Left).into();
+    } else {
+      //show "Shrink All"
+      expand_state_container = container(row![
+        button(
+          text("Shrink All").horizontal_alignment(alignment::Horizontal::Center)
+        ).on_press(BarMessage::ShrinkAll).width(Length::Fixed(90.0)),
+      ].spacing(5)).width(Length::Shrink).align_x(alignment::Horizontal::Left).into();
+    }
+
+    let export_button: Element<BarMessage> = button(
+      text("Export All").horizontal_alignment(alignment::Horizontal::Center)
+    ).on_press(BarMessage::ExportAll).width(Length::Fixed(90.0)).into();
+
     if self.display == DisplayEnum::Add {
       column![
-        container(row![
-          button("Show Search").on_press(BarMessage::ShowSearch),
-          button("Hide New Bookmark").on_press(BarMessage::Hide),
-        ].spacing(5)).width(Length::Fill).align_x(alignment::Horizontal::Center),
+        row![
+          expand_state_container,
+          container(
+            row![
+              button(
+                text("Show Search").horizontal_alignment(alignment::Horizontal::Center)
+              ).width(Length::Fixed(110.0)).on_press(BarMessage::ShowSearch),
+              button(
+                text("Hide New Bookmark").horizontal_alignment(alignment::Horizontal::Center)
+              ).width(Length::Fixed(170.0)).on_press(BarMessage::Hide),
+            ].spacing(5),
+          ).width(Length::Fill).align_x(alignment::Horizontal::Center),
+          export_button,
+        ],
         self.bookmark_add.view(&self.input_values),
       ].spacing(8).padding([10, 20]).into()
     } else if self.display == DisplayEnum::Search {
       column![
-        container(row![
-          button("Hide Search").on_press(BarMessage::Hide),
-          button("Show New Bookmark").on_press(BarMessage::ShowAdd),
-        ].spacing(5)).width(Length::Fill).align_x(alignment::Horizontal::Center),
+        row![
+          expand_state_container,
+          container(
+            row![
+              button(
+                text("Hide Search").horizontal_alignment(alignment::Horizontal::Center)
+              ).width(Length::Fixed(110.0)).on_press(BarMessage::Hide),
+              button(
+                text("Show New Bookmark").horizontal_alignment(alignment::Horizontal::Center)
+              ).width(Length::Fixed(170.0)).on_press(BarMessage::ShowAdd),
+            ].spacing(5)
+          ).width(Length::Fill).align_x(alignment::Horizontal::Center),
+          export_button,
+        ],
         self.bookmark_search.view(&self.input_values),
       ].spacing(8).padding([10, 20]).into()
     } else {
-      //
-      container(row![
-        button("Show Search").on_press(BarMessage::ShowSearch),
-        button("Show New Bookmark").on_press(BarMessage::ShowAdd),
-      ].spacing(5).padding([10, 20])).width(Length::Fill).align_x(alignment::Horizontal::Center).into()
+      container(
+        row![
+          expand_state_container,
+          container(
+            row![
+              button(
+                text("Show Search").horizontal_alignment(alignment::Horizontal::Center)
+              ).width(Length::Fixed(110.0)).on_press(BarMessage::ShowSearch),
+              button(
+                text("Show New Bookmark").horizontal_alignment(alignment::Horizontal::Center)
+              ).width(Length::Fixed(170.0)).on_press(BarMessage::ShowAdd),
+            ].spacing(5)
+          ).width(Length::Fill).align_x(alignment::Horizontal::Center),
+          export_button,
+        ].padding([10, 20])
+      ).into()
     }
   }
 }

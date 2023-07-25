@@ -1,11 +1,15 @@
 #![windows_subsystem = "windows"]
 
+use std::time::Duration;
+
 //use iced::futures::FutureExt;
 use iced::{ Application, Element };
-use iced::{ Command, Settings, window, subscription, Subscription };
+use iced::{ alignment, Command, Length, Settings, subscription, Subscription, window };
 use iced::theme::Theme;
-use iced::widget::{ container, column };
+use iced::widget::{ container, column, text };
 use image::ImageFormat;
+
+use async_std::task;
 
 mod utils;
 
@@ -43,6 +47,8 @@ struct App {
   bookmark_list: BookmarkList,
   bookmark_bar: BookmarkBar,
   window_size: WindowSize,
+  save_message_count: u16,
+  save_message: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -51,6 +57,8 @@ enum AppMessage {
   BarMessage(BarMessage),
   ListMessage(ListMessage),
   SaveDone(Result<(), StorageError>),
+  ExportDone(Result<(), StorageError>),
+  HideExportDone(u16),
   SizeChange(u32, u32),
 }
 
@@ -71,7 +79,9 @@ impl Application for App {
         window_size: WindowSize {
           width: 920,
           height: 600,
-        }
+        },
+        save_message: false,
+        save_message_count: 0,
       },
       Command::perform(Storage::load(), Self::Message::Loaded),
     )
@@ -97,8 +107,14 @@ impl Application for App {
         if BarMessage::is_save_after(message.clone()) {
           //self.storage.save_sync();
           Command::perform(Storage::save_async_separate(self.storage.stored.as_ref().unwrap().to_owned()), AppMessage::SaveDone)
+        } else if message == BarMessage::ExportAll {
+          Command::perform(Storage::export(self.storage.stored.as_ref().unwrap().to_owned()), AppMessage::ExportDone)
         } else {
-          if BarMessage::is_search_update(message) {
+          if message == BarMessage::ExpandAll {
+            self.bookmark_list.update(ListMessage::ExpandAll, &mut self.storage);
+          } else if message == BarMessage::ShrinkAll {
+            self.bookmark_list.update(ListMessage::ShrinkAll, &mut self.storage);
+          } else if BarMessage::is_search_update(message) {
             self.bookmark_list.update(ListMessage::UpdateSearch(self.bookmark_bar.bookmark_search.search_option, self.bookmark_bar.bookmark_search.sort_option, self.bookmark_bar.input_values.get("search").cloned()), &mut self.storage);
           }
           Command::none()
@@ -123,30 +139,58 @@ impl Application for App {
         println!("{:?}", error);
         Command::none()
       },
-      //
-      AppMessage::SizeChange(width, height) => {
+      Self::Message::ExportDone(Ok(_)) => {
+        self.save_message = true;
+        self.save_message_count += 1;
+        let save_message_count: u16 = self.save_message_count;
+        Command::perform(task::sleep(Duration::from_secs(2)), move |_| Self::Message::HideExportDone(save_message_count))
+      },
+      Self::Message::HideExportDone(save_message_count) => {
+        if save_message_count == self.save_message_count {
+          self.save_message = false;
+        }
+        Command::none()
+      },
+      Self::Message::SizeChange(width, height) => {
         self.window_size = WindowSize { 
           width,
           height
         };
         Command::none()
       },
-      _ => Command::none(),
+      _ => {
+        Command::none()
+      },
     }
   }
 
   //"view called when state is modified"
   fn view(&self) -> Element<'_, Self::Message> {
-    println!("Rerendering");
+    //println!("Rerendering");
     if self.loaded {
-      column![
-        self.bookmark_bar.view().map(move |message| {
-          Self::Message::BarMessage(message)
-        }),
-        self.bookmark_list.view(&self.storage.stored.as_ref().unwrap().bookmarks, &self.window_size).map(move |message| {
-          Self::Message::ListMessage(message)
-        }),
-      ].into()
+      //something something DRY. don't care right now
+      if self.save_message {
+        column![
+          self.bookmark_bar.view().map(move |message| {
+            Self::Message::BarMessage(message)
+          }),
+          container(
+            text("Exported!").horizontal_alignment(alignment::Horizontal::Center)
+          ).width(Length::Fill).align_x(alignment::Horizontal::Center),
+          self.bookmark_list.view(&self.storage.stored.as_ref().unwrap().bookmarks, &self.window_size).map(move |message| {
+            Self::Message::ListMessage(message)
+          }),
+        ].into()
+      } else {
+        column![
+          self.bookmark_bar.view().map(move |message| {
+            Self::Message::BarMessage(message)
+          }),
+          self.bookmark_list.view(&self.storage.stored.as_ref().unwrap().bookmarks, &self.window_size).map(move |message| {
+            Self::Message::ListMessage(message)
+          }),
+        ].into()
+      }
     } else {
       container("Loading...").padding(5).into()
     }

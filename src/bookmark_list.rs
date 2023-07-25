@@ -24,6 +24,8 @@ pub enum ListMessage {
   InputSet(String, String),
   UpdateSearch(SearchOptions, SortOptions, Option<String>),
   TagPress(String),
+  ExpandAll,
+  ShrinkAll,
 }
 
 impl ListMessage {
@@ -90,29 +92,30 @@ impl BookmarkList {
           !key.starts_with(&format!("{}-", uuid_value))
         });
       },
+      //why both uuid value and bookmark (which has uuid value) needed? too lazy to remove, slightly scared also
       ListMessage::SaveEditBookmark(uuid_value, bookmark) => {
         let mut bookmark = bookmark.clone();
         //title
-        let title_key: String = format!("{}-title", &bookmark.uuid);
-        if self.input_values.get(&title_key).is_some() {
-          let temp_title: String = self.input_values.get(&title_key).unwrap().to_string();
+        let title_input = self.input_values.get(&format!("{}-title", &uuid_value));
+        if title_input.is_some() {
+          let temp_title: String = title_input.unwrap().to_string();
           if temp_title != "".to_string() {
             bookmark.title = temp_title;
           }
         }
         //link
-        let link_key: String = format!("{}-link", &bookmark.uuid);
-        if self.input_values.get(&link_key).is_some() {
-          let temp_link: String = self.input_values.get(&link_key).unwrap().to_string();
+        let link_input = self.input_values.get(&format!("{}-link", &uuid_value));
+        if link_input.is_some() {
+          let temp_link: String = link_input.unwrap().to_string();
           if temp_link != "".to_string() {
             bookmark.link = normalize_link(temp_link);
           }
         }
         //tags
-        let tags_key: String = format!("{}-tags", &uuid_value);
-        if self.input_values.get(&tags_key).is_some() {
+        let tags_input = self.input_values.get(&format!("{}-tags", &uuid_value));
+        if tags_input.is_some() {
           let empty_string: String = "".to_string();
-          let tags_value: &String = self.input_values.get(&tags_key).unwrap_or(&empty_string);
+          let tags_value: &String = tags_input.unwrap_or(&empty_string);
           if tags_value.trim() == &empty_string {
             bookmark.tags = Vec::new();
           } else {
@@ -120,11 +123,11 @@ impl BookmarkList {
           }
         }
         //note
-        let note_key: String = format!("{}-note", &uuid_value);
-        if self.input_values.get(&note_key).is_none() && bookmark.note.is_none() {
+        let note_input = self.input_values.get(&format!("{}-note", &uuid_value));
+        if note_input.is_none() && bookmark.note.is_none() {
           bookmark.note = None;
-        } else if self.input_values.get(&note_key).is_some() {
-          let temp_note: String = self.input_values.get(&note_key).unwrap().to_string();
+        } else if note_input.is_some() {
+          let temp_note: String = note_input.unwrap().to_string();
           if temp_note == "".to_string() {
             bookmark.note = None;
           } else {
@@ -134,8 +137,8 @@ impl BookmarkList {
           bookmark.note = Some(bookmark.note.unwrap());
         }
         //timestamp
-        let timestamp_key: String = format!("{}-timestamp", &uuid_value);
-        bookmark.timestamp = self.input_values.get(&timestamp_key).unwrap_or(&bookmark.timestamp.to_string()).parse().unwrap_or(bookmark.timestamp);
+        let timestamp_input = self.input_values.get(&format!("{}-timestamp", &uuid_value));
+        bookmark.timestamp = timestamp_input.unwrap_or(&bookmark.timestamp.to_string()).parse().unwrap_or(bookmark.timestamp);
         //change value
         storage.add_bookmark(bookmark);
         self.edit_uuids.retain(|value| value != &uuid_value);
@@ -160,6 +163,13 @@ impl BookmarkList {
         self.filter = new_filter;
         self.sort = new_sort;
         self.query = new_query;
+      },
+      ListMessage::ExpandAll => {
+        //this unwrap() is safe I think, since you can't have the bookmark list before it's loaded
+        self.expand_uuids = storage.stored.as_ref().unwrap().bookmarks.values().map(|bookmark: &Bookmark| bookmark.uuid.clone()).collect();
+      },
+      ListMessage::ShrinkAll => {
+        self.expand_uuids = Vec::new();
       },
       _ => {},
     }
